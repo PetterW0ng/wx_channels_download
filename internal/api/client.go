@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"wx_channel/frontend"
+	"wx_channel/internal/auth"
 	"wx_channel/internal/events"
 	"wx_channel/internal/services"
 	"wx_channel/internal/webassets"
@@ -17,6 +18,7 @@ import (
 )
 
 type APIClient struct {
+	auth                      *auth.Handler
 	download_task_broadcaster *DownloadTaskBroadcaster
 	file_helper               *FileHelperHandler
 	cfg                       *APIConfig
@@ -100,6 +102,8 @@ func NewAPIClient(
 	// // Set file transfer helper SPH auto-download callback
 	// api_client.file_helper.SetSphAutoDownloadCallback(api_client.auto_download_sph_video)
 
+	api_client.auth = auth.New(cfg.AuthBaseURL, cfg.AuthPlatformType)
+	api_client.engine.Use(api_client.require_login)
 	api_client.SetupRoutes()
 	// api_client.http_handler = api_client.build_http_handler()
 	return api_client

@@ -739,6 +739,7 @@ function DownloaderPanelViewModel(props = {}) {
   }
 
   function schedule_websocket_retry() {
+    if (window.WXAuth && !window.WXAuth.active()) return;
     if (websocket_connected_.value || websocket_retry_timer_ !== null) {
       return;
     }
@@ -2611,6 +2612,7 @@ function DownloaderPanelViewModel(props = {}) {
       reqs.file.show.run({ path, name: filename, id });
     },
     connect() {
+      if (window.WXAuth && !window.WXAuth.active()) return Promise.resolve(false);
       if (
         websocket_connected_.value &&
         websocket_ &&
@@ -2988,6 +2990,7 @@ function DownloaderPanelViewModel(props = {}) {
       return connection_promise;
     },
     retryWebsocketConnection() {
+      if (window.WXAuth && !window.WXAuth.active()) return Promise.resolve(false);
       if (websocket_reconnect_promise_) {
         return websocket_reconnect_promise_;
       }
@@ -3648,3 +3651,9 @@ WXU.downloader.create = function (feeds, opt) {
 WXU.downloader.browse = function (feeds, opt) {
   return __d_vm$.methods.createBrowseHistories(feeds, opt);
 };
+
+window.addEventListener("wx-auth-ready", () => {
+  __d_vm$.methods.retryWebsocketConnection().catch(() => {});
+});
+
+window.addEventListener("wx-auth-required", () => __d_vm$.clean());

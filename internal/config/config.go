@@ -588,6 +588,14 @@ func (c *Config) LoadConfig() error {
 		ProcessValue: ResolveWorkDirPathValue,
 	})
 	Register(ConfigField{
+		Key: "auth.baseURL", Type: ConfigTypeString, Default: "http://101.201.150.118:3001/api",
+		Title: "登录服务地址", Description: "go-crm API 基础地址（包含 /api），修改后重启生效", Group: "Auth",
+	})
+	Register(ConfigField{
+		Key: "auth.platformType", Type: ConfigTypeInt, Default: 3,
+		Title: "登录平台类型", Description: "go-crm 账号的平台类型，修改后重启生效", Group: "Auth",
+	})
+	Register(ConfigField{
 		Key:         "api.protocol",
 		Type:        ConfigTypeString,
 		Default:     "http",

@@ -14,6 +14,10 @@ import (
 )
 
 func (c *APIClient) SetupRoutes() {
+	c.engine.POST("/auth/login", gin.WrapH(c.auth))
+	c.engine.POST("/api/auth/login", gin.WrapH(c.auth))
+	c.engine.GET("/api/auth/session", gin.WrapH(c.auth))
+	c.engine.POST("/api/auth/logout", gin.WrapH(c.auth))
 	// favicon
 	c.engine.GET("/favicon.ico", c.handle_favicon)
 	c.engine.HEAD("/favicon.ico", c.handle_favicon)

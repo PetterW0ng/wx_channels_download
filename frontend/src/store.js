@@ -297,6 +297,11 @@ Timeless.web.provide_http_client(http_client$);
 Timeless.web.provide_socket_client(socket_client$, {
   WebSocket,
 });
+if (!window.auth?.active) {
+  throw new Error("应用初始化前必须先完成登录认证");
+}
+window.auth.guardHttpClient(http_client$);
+window.auth.guardSocketClient(socket_client$, Timeless.Result);
 Timeless.web.provide_hls_player(hls_player$, { Hls: window.Hls });
 if (!window.dl$) {
   window.dl$ = window.DL({
@@ -305,9 +310,12 @@ if (!window.dl$) {
     auto_start: false,
     logger: window.DLUtils.log,
   });
+}
+if (!window.scraper$) {
   window.scraper$ = window.ScraperModel({
     client: http_client$,
     socket_client: socket_client$,
+    auto_start: false,
   });
 }
 Timeless.web.provide_history(history$);

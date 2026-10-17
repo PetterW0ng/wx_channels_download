@@ -8,6 +8,8 @@ import (
 )
 
 type APIConfig struct {
+	AuthBaseURL               string
+	AuthPlatformType          int
 	Version                   string
 	Mode                      string
 	Original                  *config.Config
@@ -62,6 +64,8 @@ func NewAPIConfig(c *config.Config) *APIConfig {
 	connection_concurrency := c.GetInt("download.connectionConcurrency")
 
 	api_cfg := &APIConfig{
+		AuthBaseURL:           c.GetString("auth.baseURL"),
+		AuthPlatformType:      c.GetInt("auth.platformType"),
 		Version:               c.Version,
 		Mode:                  c.Mode,
 		Original:              c,

@@ -316,6 +316,7 @@ type DownloadTaskWSMessage struct {
 var v1_download_task_upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	Subprotocols:    []string{"wx-download.v1"},
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 

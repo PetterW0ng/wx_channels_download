@@ -772,6 +772,7 @@ func shouldServeByAPI(path string) bool {
 
 	apiPrefixes := []string{
 		"/api/",
+		"/auth/",
 		"/ws/",
 		"/rss/",
 		"/mp/",

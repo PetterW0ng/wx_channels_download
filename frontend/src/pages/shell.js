@@ -134,6 +134,15 @@ export default function SiderLayoutView(props) {
             ),
           ],
         ),
+        View({ class: "app-menu dm-flex dm-flex-col dm-gap-1" }, [
+          View({ class: "app-menu__label" }, [window.auth?.username || ""]),
+          Button({
+            store: new Timeless.vm.ButtonCore({
+              onClick() { return window.auth.logout(); },
+            }),
+            class: "dm-button--sidebar-nav",
+          }, ["退出登录"]),
+        ]),
         // View({ class: "app-sider__footer" }, [
         //   View({ class: "app-sider__footer-icon" }, [
         //     Timeless.Icon({ name: "hard-drive", size: 16 }),

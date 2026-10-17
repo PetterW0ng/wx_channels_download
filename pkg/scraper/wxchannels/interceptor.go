@@ -20,6 +20,7 @@ import (
 // InterceptorConfig contains the application values needed by the wxchannels
 // proxy interception rules.
 type InterceptorConfig struct {
+	InjectedSession       func(origin string) map[string]any
 	Version               string
 	Mode                  string
 	DebugShowError        bool
@@ -110,6 +111,15 @@ func NewInterceptorPlugins(cfg InterceptorConfig, logger *zerolog.Logger) []*ech
 		Match: "channels.weixin.qq.com",
 		OnRequest: func(ctx *echo.Context) {
 			pathname := ctx.Req.URL.Path
+			if pathname == "/__assets/auth/session" && ctx.Req.Method == http.MethodGet && ctx.Req.URL.Hostname() == "channels.weixin.qq.com" {
+				payload := map[string]any{"status": "error", "message": "请先在下载器管理页面登录"}
+				if cfg.InjectedSession != nil {
+					payload = cfg.InjectedSession("https://channels.weixin.qq.com")
+				}
+				body, _ := json.Marshal(payload)
+				ctx.Mock(200, map[string]string{"Content-Type": "application/json", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "https://channels.weixin.qq.com"}, string(body))
+				return
+			}
 			if frontend.MockStaticAsset(pathname, ctx.Req.Header, func(status int, headers map[string]string, body string) {
 				ctx.Mock(status, headers, body)
 			}, frontend.StaticAssetMockOptions{
@@ -211,6 +221,7 @@ func NewInterceptorPlugins(cfg InterceptorConfig, logger *zerolog.Logger) []*ech
 				}
 				frontend_config["version"] = version
 				frontend_config["assets_base_url"] = asset_base_url
+				frontend_config["injectedAuthRequired"] = cfg.InjectedSession != nil
 				logger.Info().
 					Str("file", "pkg/scraper/wxchannels/interceptor.go").
 					Interface("variables", variables).
@@ -223,6 +234,7 @@ func NewInterceptorPlugins(cfg InterceptorConfig, logger *zerolog.Logger) []*ech
 					fmt.Sprintf(`window.__d_config = %s;`, frontend_config_byte),
 				)
 				append_scripts(
+					url_build("/inject/auth.js", version_query),
 					url_build("/inject/eventbus.js", version_query),
 					url_build("/public/dl.utils.js", version_query),
 					url_build("/public/dl.sdk.js", version_query),

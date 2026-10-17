@@ -142,7 +142,10 @@ function ChannelsWebsocketClient() {
     retry_timer_ = null;
   }
 
+  window.addEventListener("wx-auth-required", cancel_retry);
+
   function schedule_retry() {
+    if (window.WXAuth && !window.WXAuth.active()) return;
     if (state.connection_status === "connected" || retry_timer_ !== null) {
       return;
     }
@@ -154,6 +157,7 @@ function ChannelsWebsocketClient() {
 
   const methods = {
     connect_local_ws() {
+      if (window.WXAuth && !window.WXAuth.active()) return Promise.resolve(false);
       if (
         state.connection_status === "connected" &&
         websocket_ &&
@@ -560,3 +564,7 @@ function ChannelsWebsocketClient() {
 
 var ws_client$ = ChannelsWebsocketClient();
 ws_client$.methods.connect_local_ws().catch(() => {});
+
+window.addEventListener("wx-auth-ready", () => {
+  ws_client$.methods.connect_local_ws().catch(() => {});
+});

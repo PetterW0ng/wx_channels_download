@@ -1601,8 +1601,12 @@ function ScraperPageViewModel(props) {
     return true;
   }
 
+  let stop_on_logout = () => {};
+
   function dispose() {
+    if (disposed) return;
     disposed = true;
+    stop_on_logout();
     clear_pending_download_conflict();
     reset_article_html_processing();
     reset_cache_content(true);
@@ -2270,6 +2274,8 @@ function ScraperPageViewModel(props) {
     schedulePlatformStatusPopoverHide: schedule_platform_status_popover_hide,
     async connectProgress() {
       disposed = false;
+      stop_on_logout();
+      stop_on_logout = window.auth.onStop(dispose);
       await restore_scraper_job();
       if (disposed) {
         return false;

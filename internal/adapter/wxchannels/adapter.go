@@ -225,7 +225,11 @@ func (a *ChannelsAdapter) register(d *adapter.AdapterOptions) error {
 				Str("global_script_path", d.Config.GlobalScriptPath).
 				Msg("wxchannels adapter register: creating interceptor config")
 		}
-		for _, plugin := range wxchannels.NewInterceptorPlugins(new_interceptor_config(d.Config), d.Logger) {
+		interceptorConfig := new_interceptor_config(d.Config)
+		if issuer, ok := d.Routes.(interface{ IssueInjectedSession(string) map[string]any }); ok {
+			interceptorConfig.InjectedSession = issuer.IssueInjectedSession
+		}
+		for _, plugin := range wxchannels.NewInterceptorPlugins(interceptorConfig, d.Logger) {
 			d.Interceptor.AddPostPlugin(plugin)
 		}
 	}

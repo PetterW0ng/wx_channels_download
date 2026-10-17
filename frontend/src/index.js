@@ -101,9 +101,9 @@ window.classNames = Timeless.classNames;
 window.SVG = Timeless.SVG;
 window.Circle = Timeless.Circle;
 
-window.API_ORIGIN = window.config.remoteServerEnabled
+window.API_ORIGIN = window.auth?.apiOrigin || (window.config.remoteServerEnabled
   ? "https://weixin110.qq.com"
-  : window.config.apiOrigin || window.location.origin;
+  : window.config.apiOrigin || window.location.origin);
 
 const default_platform_favicon = "public/platform-icons.svg#default";
 const platform_favicons = Object.freeze({
@@ -321,6 +321,7 @@ function bootstrap() {
   if (!$root) {
     throw new Error("应用无法启动：缺少 App Model 或根节点");
   }
+  window.auth.startCoreServices([window.dl$, window.scraper$]);
   router$.prepare(window.location);
   app$.start({
     width: window.innerWidth,

@@ -1,0 +1,23 @@
+@baseUrl = http://127.0.0.1:2022
+@identity = replace-with-your-account
+@password = replace-with-your-password
+
+### 登录（HTTP 客户端需要开启 Cookie 保存）
+# platformType 由 config.yaml 的 auth.platformType 配置，默认 3。
+# data 是 CRM Token；本地接口使用响应的 Set-Cookie，不使用此 Token。
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "identity": "{{identity}}",
+  "password": "{{password}}"
+}
+
+### 当前登录会话
+GET {{baseUrl}}/api/auth/session
+
+### 登录后访问业务接口
+GET {{baseUrl}}/api/status
+
+### 退出登录
+POST {{baseUrl}}/api/auth/logout

@@ -1137,6 +1137,7 @@
   }
 
   function runtime_config_origin() {
+    if (global.auth?.apiOrigin) return global.auth.apiOrigin;
     const config = global.__d_config || {};
     if (config.remoteServerEnabled) {
       return "https://weixin110.qq.com";
