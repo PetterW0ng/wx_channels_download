@@ -118,6 +118,7 @@ func (d *HermesEngine) current_progress(task_id int, mark_emit bool) *TaskProgre
 		tracker.last_emit_time = time.Now()
 	}
 	p := &TaskProgress{
+		Postprocess:   tracker.postprocess,
 		TotalSize:     tracker.total_size,
 		Downloaded:    tracker.total_downloaded,
 		Speed:         tracker.total_speed,
@@ -138,6 +139,20 @@ func (d *HermesEngine) current_progress(task_id int, mark_emit bool) *TaskProgre
 		})
 	}
 	return p
+}
+
+func (d *HermesEngine) update_postprocess_progress(task_id int, progress PostprocessProgress) {
+	tracker, ok := d.get_progress_tracker(task_id)
+	if !ok {
+		return
+	}
+	tracker.mu.Lock()
+	tracker.postprocess = &progress
+	tracker.total_speed = 0
+	for _, resource := range tracker.resources {
+		resource.speed = 0
+	}
+	tracker.mu.Unlock()
 }
 
 // initTracker creates a new progress tracker for the given task.

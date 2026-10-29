@@ -527,25 +527,36 @@ func youtube_video_variants(info *youtube.VideoInfo, selected *youtube.VideoForm
 	if selected != nil {
 		default_key = youtube_video_variant_key(*selected)
 	}
+	var audio_formats []youtube.VideoFormat
+	for _, format := range info.Formats {
+		if format.HasAudio && !format.HasVideo && strings.TrimSpace(format.URL) != "" && !format.NeedsSignature {
+			audio_formats = append(audio_formats, format)
+		}
+	}
 	for _, format := range info.Formats {
 		if !format.HasVideo || strings.TrimSpace(format.URL) == "" || format.NeedsSignature {
 			continue
 		}
 		variant_key := youtube_video_variant_key(format)
+		paired_formats := []youtube.VideoFormat{format}
+		if !format.HasAudio && len(audio_formats) > 0 {
+			paired_formats = append(paired_formats, best_audio_format(audio_formats))
+		}
 		metadata, _ := json.Marshal(map[string]any{
-			"itag":              format.Itag,
-			"mime_type":         format.MimeType,
-			"quality":           format.Quality,
-			"audio_quality":     format.AudioQuality,
-			"audio_codec":       format.AudioCodec,
-			"audio_track_id":    format.AudioTrackID,
-			"audio_track_name":  format.AudioTrackName,
-			"audio_is_default":  format.AudioIsDefault,
-			"audio_is_original": format.AudioIsOriginal,
-			"video_codec":       format.VideoCodec,
-			"adaptive":          format.Adaptive,
-			"content_length":    format.ContentLength,
-			"average_bitrate":   format.AverageBitrate,
+			"itag":               format.Itag,
+			"mime_type":          format.MimeType,
+			"quality":            format.Quality,
+			"audio_quality":      format.AudioQuality,
+			"audio_codec":        format.AudioCodec,
+			"audio_track_id":     format.AudioTrackID,
+			"audio_track_name":   format.AudioTrackName,
+			"audio_is_default":   format.AudioIsDefault,
+			"audio_is_original":  format.AudioIsOriginal,
+			"video_codec":        format.VideoCodec,
+			"adaptive":           format.Adaptive,
+			"content_length":     format.ContentLength,
+			"average_bitrate":    format.AverageBitrate,
+			"youtube_processing": youtube_download_processing(paired_formats),
 		})
 		stream_type := model.ContentVideoVariantStreamTypeProgressive
 		if !format.HasAudio {
@@ -640,19 +651,13 @@ func best_content_url(info *youtube.VideoInfo) string {
 }
 
 func best_progressive_format(formats []youtube.VideoFormat) youtube.VideoFormat {
-	best := formats[0]
-	for _, format := range formats[1:] {
-		if video_score(format) > video_score(best) {
-			best = format
-		}
-	}
-	return best
+	return best_video_format(formats)
 }
 
 func best_video_format(formats []youtube.VideoFormat) youtube.VideoFormat {
 	best := formats[0]
 	for _, format := range formats[1:] {
-		if video_score(format) > video_score(best) {
+		if prefer_video_format(format, best) {
 			best = format
 		}
 	}
@@ -663,7 +668,7 @@ func best_audio_format(formats []youtube.VideoFormat) youtube.VideoFormat {
 	best := formats[0]
 	for _, format := range formats[1:] {
 		if audio_track_preference(format) > audio_track_preference(best) ||
-			(audio_track_preference(format) == audio_track_preference(best) && audio_score(format) > audio_score(best)) {
+			(audio_track_preference(format) == audio_track_preference(best) && prefer_audio_format(format, best)) {
 			best = format
 		}
 	}
@@ -689,8 +694,60 @@ func audio_track_preference(format youtube.VideoFormat) int {
 	return 0
 }
 
-func video_score(format youtube.VideoFormat) int {
-	return format.Height*1_000_000 + format.FPS*10_000 + first_non_zero_int(format.AverageBitrate, format.Bitrate)
+// Preserve resolution and frame rate before preferring streams that can be
+// copied into the H.264/AAC output. Bitrates across codecs are not comparable.
+func prefer_video_format(candidate, current youtube.VideoFormat) bool {
+	if candidate.Height != current.Height {
+		return candidate.Height > current.Height
+	}
+	if candidate.FPS != current.FPS {
+		return candidate.FPS > current.FPS
+	}
+	if copyable_h264_codec(candidate.VideoCodec) != copyable_h264_codec(current.VideoCodec) {
+		return copyable_h264_codec(candidate.VideoCodec)
+	}
+	if candidate.HasAudio && current.HasAudio && aac_codec(candidate.AudioCodec) != aac_codec(current.AudioCodec) {
+		return aac_codec(candidate.AudioCodec)
+	}
+	return first_non_zero_int(candidate.AverageBitrate, candidate.Bitrate) > first_non_zero_int(current.AverageBitrate, current.Bitrate)
+}
+
+func prefer_audio_format(candidate, current youtube.VideoFormat) bool {
+	if aac_codec(candidate.AudioCodec) != aac_codec(current.AudioCodec) {
+		return aac_codec(candidate.AudioCodec)
+	}
+	return audio_score(candidate) > audio_score(current)
+}
+
+func copyable_h264_codec(codec string) bool {
+	codec = strings.ToLower(strings.TrimSpace(codec))
+	if codec == "h264" {
+		return true
+	}
+	// Only prefer the usual 8-bit 4:2:0 AVC profiles. High 10/4:2:2/4:4:4
+	// still need conversion. Postprocessing verifies the actual pixel format.
+	for _, prefix := range []string{"avc1.", "avc3."} {
+		if strings.HasPrefix(codec, prefix) {
+			profile := strings.TrimPrefix(codec, prefix)
+			if len(profile) != 6 {
+				return false
+			}
+			switch profile[:2] {
+			case "42", "4d", "58", "64":
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func aac_codec(codec string) bool {
+	switch strings.ToLower(strings.TrimSpace(codec)) {
+	case "aac", "mp4a.40.2", "mp4a.40.5", "mp4a.40.29":
+		return true
+	default:
+		return false
+	}
 }
 
 func audio_score(format youtube.VideoFormat) int {
@@ -764,10 +821,11 @@ func headers_json_string(headers map[string]string) string {
 
 func build_extra_json(info *youtube.VideoInfo, formats []youtube.VideoFormat) string {
 	data, _ := json.Marshal(map[string]any{
-		"id":         info.ID,
-		"title":      info.Title,
-		"source_url": first_non_empty(info.WebpageURL, canonical_watch_url(info.ID)),
-		"format_ids": format_ids(formats),
+		"id":                 info.ID,
+		"title":              info.Title,
+		"source_url":         first_non_empty(info.WebpageURL, canonical_watch_url(info.ID)),
+		"format_ids":         format_ids(formats),
+		"youtube_processing": youtube_download_processing(formats),
 	})
 	return string(data)
 }

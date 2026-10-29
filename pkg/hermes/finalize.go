@@ -14,6 +14,10 @@ func (d *HermesEngine) finish_task(job *TaskJob) error {
 		return fmt.Errorf("task job is nil")
 	}
 	task_id := job.ID
+	job.ReportPostprocessProgress = func(progress PostprocessProgress) {
+		d.update_postprocess_progress(task_id, progress)
+	}
+	defer func() { job.ReportPostprocessProgress = nil }()
 
 	// TaskJob already contains the parsed task context and the same ResourceJob
 	// instances that completed transfer. Do not reload or copy them here.
@@ -43,6 +47,7 @@ func (d *HermesEngine) finish_task(job *TaskJob) error {
 
 	// 4. Call postprocessor if set
 	if d.postprocessor != nil {
+		job.ReportPostprocessProgress(PostprocessProgress{Stage: "preparing"})
 		d.logger.Info().Int("task_id", task_id).Msg("run - starting postprocessing")
 		if err := d.postprocessor.Process(context.Background(), job); err != nil {
 			d.logger.Error().Int("task_id", task_id).Err(err).Msg("postprocessing failed")
@@ -74,6 +79,7 @@ func (d *HermesEngine) finish_task(job *TaskJob) error {
 
 	// 5. Rename files from unique_id-based names to display names,
 	// then apply filename template and hook for the final output name.
+	job.ReportPostprocessProgress(PostprocessProgress{Stage: "finalizing"})
 	d.finalize_resource_filenames(job)
 
 	// 6. Persist the final Resource values. Postprocessing and filename

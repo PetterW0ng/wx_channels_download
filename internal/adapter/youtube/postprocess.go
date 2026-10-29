@@ -19,10 +19,6 @@ import (
 
 var youtube_ffmpeg_path = exec.LookPath
 
-var run_youtube_ffmpeg = func(ctx context.Context, ffmpeg_path string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, ffmpeg_path, args...).CombinedOutput()
-}
-
 // Postprocess validates subtitles and merges separately downloaded YouTube video
 // and audio tracks into H.264/AAC MP4 before Hermes finalizes filenames.
 func (h *handler) Postprocess(ctx context.Context, info *hermes.TaskJob, deps adapter.PostprocessDeps) error {
@@ -63,7 +59,7 @@ func (h *handler) Postprocess(ctx context.Context, info *hermes.TaskJob, deps ad
 	if err != nil {
 		return fmt.Errorf("youtube postprocess: ffmpeg is required: %w", err)
 	}
-	merged_path, err := youtube_merge_media(ctx, ffmpeg_path, video_path, audio_path)
+	merged_path, err := youtube_merge_media(ctx, ffmpeg_path, video_path, audio_path, info.ReportPostprocessProgress)
 	if err != nil {
 		return err
 	}
@@ -205,7 +201,16 @@ func require_youtube_regular_file(file_path string, media_name string) error {
 	return nil
 }
 
-func youtube_merge_media(ctx context.Context, ffmpeg_path string, video_path string, audio_path string) (string, error) {
+func youtube_merge_media(ctx context.Context, ffmpeg_path string, video_path string, audio_path string, report func(hermes.PostprocessProgress)) (string, error) {
+	video := probe_youtube_media(ctx, ffmpeg_path, video_path, "v:0")
+	audio := probe_youtube_media(ctx, ffmpeg_path, audio_path, "a:0")
+	if err := context.Cause(ctx); err != nil {
+		return "", err
+	}
+	codec_args, stage := youtube_codec_args(video, audio)
+	if report != nil {
+		report(hermes.PostprocessProgress{Stage: stage})
+	}
 	temporary_file, err := os.CreateTemp(filepath.Dir(video_path), ".youtube-merge-*.mp4")
 	if err != nil {
 		return "", fmt.Errorf("youtube postprocess: create merge file: %w", err)
@@ -219,19 +224,25 @@ func youtube_merge_media(ctx context.Context, ffmpeg_path string, video_path str
 		return "", fmt.Errorf("youtube postprocess: prepare merge file: %w", err)
 	}
 
-	output, err := run_youtube_ffmpeg(ctx, ffmpeg_path,
+	args := []string{
 		"-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+		"-nostats", "-progress", "pipe:1",
 		"-i", video_path,
 		"-i", audio_path,
 		"-map", "0:v:0",
 		"-map", "1:a:0",
-		// Normalize codecs as well as the container for browser playback.
-		"-c:v", "libx264", "-pix_fmt", "yuv420p",
-		"-c:a", "aac",
+	}
+	args = append(args, codec_args...)
+	args = append(args,
 		"-movflags", "+faststart",
 		"-f", "mp4",
 		merged_path,
 	)
+	output, err := run_youtube_ffmpeg(ctx, ffmpeg_path, func(values map[string]string) {
+		if report != nil {
+			report(youtube_processing_progress(stage, video.Duration, values))
+		}
+	}, args...)
 	if err != nil {
 		os.Remove(merged_path)
 		message := strings.TrimSpace(string(output))
@@ -247,6 +258,9 @@ func youtube_merge_media(ctx context.Context, ffmpeg_path string, video_path str
 	if !merged_info.Mode().IsRegular() || merged_info.Size() <= 0 {
 		os.Remove(merged_path)
 		return "", fmt.Errorf("youtube postprocess: ffmpeg produced an empty output")
+	}
+	if report != nil {
+		report(hermes.PostprocessProgress{Stage: "finalizing"})
 	}
 	return merged_path, nil
 }

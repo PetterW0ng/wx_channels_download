@@ -280,15 +280,16 @@ func (b *DownloadTaskBroadcaster) complete_task_broadcast(task_id int, terminal_
 // fields such as names, URLs, configuration, and creation time are supplied
 // only by a full task_create/task_upsert record.
 type DownloadTaskWSUpdate struct {
-	ID         int                        `json:"id"`
-	Status     int                        `json:"status"`
-	Size       int64                      `json:"size"`
-	Downloaded int64                      `json:"downloaded"`
-	Speed      int64                      `json:"speed"`
-	Progress   float64                    `json:"progress"`
-	Error      string                     `json:"error"`
-	Files      []DownloadTaskFileWSUpdate `json:"files,omitempty"`
-	UpdatedAt  int64                      `json:"updated_at,omitempty"`
+	Postprocess *hermes.PostprocessProgress `json:"postprocess"`
+	ID          int                         `json:"id"`
+	Status      int                         `json:"status"`
+	Size        int64                       `json:"size"`
+	Downloaded  int64                       `json:"downloaded"`
+	Speed       int64                       `json:"speed"`
+	Progress    float64                     `json:"progress"`
+	Error       string                      `json:"error"`
+	Files       []DownloadTaskFileWSUpdate  `json:"files,omitempty"`
+	UpdatedAt   int64                       `json:"updated_at,omitempty"`
 }
 
 // DownloadTaskFileWSUpdate is the mutable subset of a task file record.
@@ -549,15 +550,16 @@ func download_task_ws_update_from_record(record services.DownloadTaskRecord) Dow
 		})
 	}
 	return DownloadTaskWSUpdate{
-		ID:         record.ID,
-		Status:     record.Status,
-		Size:       record.Size,
-		Downloaded: record.Downloaded,
-		Speed:      record.Speed,
-		Progress:   record.Progress,
-		Error:      record.Error,
-		Files:      files,
-		UpdatedAt:  record.UpdatedAt,
+		Postprocess: record.Postprocess,
+		ID:          record.ID,
+		Status:      record.Status,
+		Size:        record.Size,
+		Downloaded:  record.Downloaded,
+		Speed:       record.Speed,
+		Progress:    record.Progress,
+		Error:       record.Error,
+		Files:       files,
+		UpdatedAt:   record.UpdatedAt,
 	}
 }
 
@@ -657,14 +659,15 @@ func (b *DownloadTaskBroadcaster) broadcast_download_task_progress(task_id int, 
 	pct := services.TaskProgressPercent(p.Downloaded, p.TotalSize, effective_status)
 
 	update := DownloadTaskWSUpdate{
-		ID:         task.Id,
-		Status:     effective_status,
-		Size:       p.TotalSize,
-		Downloaded: p.Downloaded,
-		Speed:      p.Speed,
-		Progress:   pct,
-		Error:      error_message,
-		Files:      files,
+		Postprocess: p.Postprocess,
+		ID:          task.Id,
+		Status:      effective_status,
+		Size:        p.TotalSize,
+		Downloaded:  p.Downloaded,
+		Speed:       p.Speed,
+		Progress:    pct,
+		Error:       error_message,
+		Files:       files,
 	}
 
 	// Cache invalidation is also used as a terminal-event barrier. Holding the

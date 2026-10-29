@@ -1,6 +1,7 @@
 import { ThirdPartyDownloaderModel } from "@/third-party-downloader.model.js";
 import { proxy_image_url } from "@/image-proxy.model.js";
 import { createCheckboxStore } from "../dmui.js";
+import { format_youtube_processing } from "./scraper.processing.js";
 
 const active_job_storage_key = "scraper_active_job_id";
 const platform_status_popover_hide_delay = 240;
@@ -2696,10 +2697,12 @@ function normalize_content_video_variant(variant, index) {
   const spec = String(first_non_empty(source.spec, source.Spec)).trim();
   const is_default =
     Number(first_non_empty(source.is_default, source.IsDefault)) > 0;
+  const metadata = download_info_json_object(first_non_empty(source.metadata, source.Metadata));
+  const processing = format_youtube_processing(metadata.youtube_processing);
   const meta_text = [
     dimensions,
     format_bytes(first_non_empty(source.size, source.Size)),
-    first_non_empty(source.codec, source.Codec),
+    processing.codec_text || first_non_empty(source.codec, source.Codec),
     first_non_empty(source.format, source.Format),
     first_non_empty(source.stream_type, source.StreamType),
   ]
@@ -2720,6 +2723,7 @@ function normalize_content_video_variant(variant, index) {
     variant_key,
     spec,
     meta_text,
+    processing_text: processing.processing_text,
     is_default,
     default_text: is_default ? "默认" : "可选",
     url: String(first_non_empty(source.url, source.URL)).trim(),
@@ -2865,6 +2869,7 @@ function normalize_download_resource(resource_info, index, content_id) {
   const extra = download_info_json_object(
     first_non_empty(resource.extra, resource.Extra),
   );
+  const processing = format_youtube_processing(extra.youtube_processing, kind);
   const decode_key = String(
     first_non_empty(
       extra.decode_key,
@@ -2896,10 +2901,12 @@ function normalize_download_resource(resource_info, index, content_id) {
       kind,
       format_bytes(first_non_empty(resource.size, resource.Size)) || "unknown",
       `${endpoints.length} 个下载端点`,
+      processing.codec_text,
     ]
       .filter(Boolean)
       .join(" · "),
     content_id: resource_content_id,
+    processing_text: processing.processing_text,
     content_assets,
     has_content_assets: content_assets.length > 0,
     endpoints,

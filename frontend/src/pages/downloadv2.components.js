@@ -1,4 +1,5 @@
 import { Checkbox, Tag, createCheckboxStore } from "../dmui.js";
+import { format_postprocess } from "./downloadv2.processing.js";
 import {
   format_download_percent,
   format_download_size,
@@ -239,6 +240,12 @@ function DownloadV2TaskState(task$) {
         speed_text = format_download_speed(progress.speed);
         status_text = "下载中";
         progress_text = is_live_stream ? "" : format_progress_text(percent);
+        const processing = format_postprocess(raw.postprocess);
+        if (processing) {
+          status_text = processing.status_text;
+          progress_text = processing.progress_text;
+          speed_text = processing.speed_text;
+        }
         status_color = "var(--dm-color-primary)";
       } else if (is_completed) {
         status_text = has_deleted_files
@@ -580,9 +587,7 @@ export function DownloadV2TaskMain(props) {
               ok() {
                 return [
                   "·",
-                  DownloadV2Number({
-                    value: computed(state_, (state) => state.speed_text),
-                  }),
+                  View({}, [computed(state_, (state) => state.speed_text)]),
                 ];
               },
             }),

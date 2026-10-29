@@ -300,32 +300,33 @@ type TaskListResult struct {
 // ---------------------------------------------------------------------------
 
 type DownloadTaskRecord struct {
-	ID           int                      `json:"id"`
-	ContentID    *string                  `json:"content_id,omitempty"`
-	ContentType  string                   `json:"content_type,omitempty"`
-	ParentTaskID *int                     `json:"parent_task_id,omitempty"`
-	RootTaskID   int                      `json:"root_task_id"`
-	RelationType string                   `json:"relation_type,omitempty"`
-	ChildCount   int                      `json:"child_count"`
-	Name         string                   `json:"name"`
-	PlatformID   string                   `json:"platform_id"`
-	Status       int                      `json:"status"`
-	SourceURL    string                   `json:"source_url"`
-	CoverURL     string                   `json:"cover_url"`
-	CoverWidth   string                   `json:"cover_width"`
-	CoverHeight  string                   `json:"cover_height"`
-	ConfigJSON   string                   `json:"config_json"`
-	MetadataJSON string                   `json:"metadata_json"`
-	URL          string                   `json:"url"`
-	Size         int64                    `json:"size"`
-	Downloaded   int64                    `json:"downloaded"`
-	Speed        int64                    `json:"speed"`
-	Progress     float64                  `json:"progress"`
-	Error        string                   `json:"error"`
-	Files        []DownloadTaskFileRecord `json:"files"`
-	FileCount    int                      `json:"file_count"`
-	CreatedAt    int64                    `json:"created_at"`
-	UpdatedAt    int64                    `json:"updated_at"`
+	Postprocess  *hermes.PostprocessProgress `json:"postprocess"`
+	ID           int                         `json:"id"`
+	ContentID    *string                     `json:"content_id,omitempty"`
+	ContentType  string                      `json:"content_type,omitempty"`
+	ParentTaskID *int                        `json:"parent_task_id,omitempty"`
+	RootTaskID   int                         `json:"root_task_id"`
+	RelationType string                      `json:"relation_type,omitempty"`
+	ChildCount   int                         `json:"child_count"`
+	Name         string                      `json:"name"`
+	PlatformID   string                      `json:"platform_id"`
+	Status       int                         `json:"status"`
+	SourceURL    string                      `json:"source_url"`
+	CoverURL     string                      `json:"cover_url"`
+	CoverWidth   string                      `json:"cover_width"`
+	CoverHeight  string                      `json:"cover_height"`
+	ConfigJSON   string                      `json:"config_json"`
+	MetadataJSON string                      `json:"metadata_json"`
+	URL          string                      `json:"url"`
+	Size         int64                       `json:"size"`
+	Downloaded   int64                       `json:"downloaded"`
+	Speed        int64                       `json:"speed"`
+	Progress     float64                     `json:"progress"`
+	Error        string                      `json:"error"`
+	Files        []DownloadTaskFileRecord    `json:"files"`
+	FileCount    int                         `json:"file_count"`
+	CreatedAt    int64                       `json:"created_at"`
+	UpdatedAt    int64                       `json:"updated_at"`
 }
 
 type DownloadTaskFileRecord struct {
@@ -1728,7 +1729,12 @@ func (s *DownloadTaskService) BuildTaskRecords(tasks []model.DownloadTask) ([]Do
 		if task.ContentId != nil {
 			content_type = content_type_by_id[*task.ContentId]
 		}
+		var postprocess *hermes.PostprocessProgress
+		if progress := progress_by_task[task.Id]; progress != nil {
+			postprocess = progress.Postprocess
+		}
 		records = append(records, DownloadTaskRecord{
+			Postprocess:  postprocess,
 			ID:           task.Id,
 			ContentID:    task.ContentId,
 			ContentType:  content_type,

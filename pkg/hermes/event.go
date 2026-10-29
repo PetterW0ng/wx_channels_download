@@ -99,12 +99,21 @@ type TaskDeletedEventData struct {
 // TaskProgress carries the current aggregate download progress, computed
 // entirely from in-memory state without database queries.
 type TaskProgress struct {
-	TotalSize     int64              `json:"total_size"`
-	Downloaded    int64              `json:"downloaded"`
-	Speed         int64              `json:"speed"`
-	ResourceCount int                `json:"resource_count"`
-	Resources     []ResourceProgress `json:"resources"`
-	Keepalive     bool               `json:"-"` // true when emitted as keepalive (no real progress change)
+	Postprocess   *PostprocessProgress `json:"postprocess"`
+	TotalSize     int64                `json:"total_size"`
+	Downloaded    int64                `json:"downloaded"`
+	Speed         int64                `json:"speed"`
+	ResourceCount int                  `json:"resource_count"`
+	Resources     []ResourceProgress   `json:"resources"`
+	Keepalive     bool                 `json:"-"` // true when emitted as keepalive (no real progress change)
+}
+
+// PostprocessProgress is separate from transferred bytes: downloading may be
+// complete while media processing is still running. Nil estimates are unknown.
+type PostprocessProgress struct {
+	Stage      string   `json:"stage"`
+	Percent    *float64 `json:"percent"`
+	ETASeconds *float64 `json:"eta_seconds"`
 }
 
 // ResourceProgress carries a single resource's download progress.

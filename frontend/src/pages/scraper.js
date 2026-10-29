@@ -1111,6 +1111,12 @@ function ScraperVideoVariantItem(props) {
           variant.meta_text || variant.variant_key,
         ]),
         Show({
+          when: Boolean(variant.processing_text),
+          ok() {
+            return View({ class: "home-video-supplement-meta" }, [variant.processing_text]);
+          },
+        }),
+        Show({
           when: Boolean(variant.url),
           ok() {
             return View(
@@ -1604,6 +1610,12 @@ function ScraperDownloadResourceItem(props) {
           [resource.display_name],
         ),
         View({ class: "home-download-resource-meta" }, [resource.meta_text]),
+        Show({
+          when: Boolean(resource.processing_text),
+          ok() {
+            return View({ class: "home-download-resource-meta" }, [resource.processing_text]);
+          },
+        }),
       ]),
       Button(
         {

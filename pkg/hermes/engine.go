@@ -73,6 +73,8 @@ type TaskJob struct {
 	Resources   []ResourceJob
 	Config      map[string]any // Parsed download configuration for hooks
 	Metadata    map[string]any // Parsed content metadata for postprocessors and hooks
+	// Runtime callback; adapters report processing independently of download bytes.
+	ReportPostprocessProgress func(PostprocessProgress) `json:"-"`
 
 	ctx           context.Context
 	cancel        context.CancelCauseFunc
@@ -364,6 +366,7 @@ type HermesEngine struct {
 
 // progressTracker holds in-memory progress for all resources of a task.
 type progress_tracker struct {
+	postprocess          *PostprocessProgress
 	mu                   sync.Mutex
 	resources            map[int]*resource_tracker
 	order                []int // resource IDs in merge_order
